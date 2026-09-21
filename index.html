@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ShareMap - Merchant QR Generator</title>
-  <!-- QRious Engine (Reliable Direct Canvas Generator) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <!-- EasyQRCodeJS (Best for Logo-overlay QR Codes) -->
+  <script src="https://cdn.jsdelivr.net/npm/easyqrcodejs@4.5.0/dist/easy.qrcode.min.js"></script>
   <style>
     body { 
       font-family: Arial, sans-serif; 
@@ -56,6 +56,7 @@
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
+    #hiddenQr { display: none; }
   </style>
 </head>
 <body>
@@ -81,30 +82,30 @@
   <button id="downloadBtn" onclick="downloadQR()">📥 DOWNLOAD QR STANDEE (PNG)</button>
 </div>
 
-<script>
-  let uploadedLogo = null;
+<!-- Hidden container for QR generation -->
+<div id="hiddenQr"></div>
 
-  // Read uploaded logo file
+<script>
+  let uploadedLogoUrl = null;
+
+  // Read uploaded logo file as Base64 Data URL
   document.getElementById('logoInput').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = function(event) {
-        const img = new Image();
-        img.onload = function() {
-          uploadedLogo = img;
-        };
-        img.src = event.target.result;
+        uploadedLogoUrl = event.target.result;
       };
       reader.readAsDataURL(file);
     } else {
-      uploadedLogo = null;
+      uploadedLogoUrl = null;
     }
   });
 
   function generateMerchantQR() {
     const storeName = document.getElementById('storeName').value.trim();
     const phone = document.getElementById('phone').value.trim();
+    const hiddenContainer = document.getElementById('hiddenQr');
     const canvas = document.getElementById('qrCanvas');
     const ctx = canvas.getContext('2d');
     const downloadBtn = document.getElementById('downloadBtn');
@@ -114,56 +115,56 @@
       return;
     }
 
-    // Target ShareMap URL
+    hiddenContainer.innerHTML = "";
+
+    // Target URL with URL parameter
     const sharemapUrl = `https://sharemap-digital-address.github.io/send-sharemap-smslocation/?phone=${phone}`;
 
-    // 1. Setup Canvas Card Dimensions
-    canvas.width = 340;
-    canvas.height = 460;
+    // Options for EasyQRCodeJS
+    const options = {
+      text: sharemapUrl,
+      width: 240,
+      height: 240,
+      colorDark: "#000000",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.H, // High error correction
+      logo: uploadedLogoUrl || "", // Center logo if provided
+      logoWidth: 50,
+      logoHeight: 50,
+      logoBackgroundColor: '#ffffff',
+      logoBackgroundTransparent: false
+    };
 
-    // Background Card
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Generate Raw QR
+    new QRCode(hiddenContainer, options);
 
-    // Header Bar
-    ctx.fillStyle = "#0275d8";
-    ctx.fillRect(0, 0, canvas.width, 60);
+    // Render onto final Merchant Card Canvas
+    setTimeout(() => {
+      const qrCanvasSrc = hiddenContainer.querySelector('canvas') || hiddenContainer.querySelector('img');
+      if (!qrCanvasSrc) return;
 
-    // Header Title
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 18px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("📍 SHAREMAP DIGITAL ADDRESS", canvas.width / 2, 38);
+      // Card Dimensions (Maya / GCash Standee Layout)
+      canvas.width = 340;
+      canvas.height = 460;
 
-    // 2. Render QR Engine directly to memory
-    const qrEngine = new QRious({
-      value: sharemapUrl,
-      size: 240,
-      level: 'H' // High Error Correction para readable kahit may Logo
-    });
+      // Background
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Create temporary image element for QR render
-    const qrImg = new Image();
-    qrImg.onload = function() {
+      // Top Header
+      ctx.fillStyle = "#0275d8";
+      ctx.fillRect(0, 0, canvas.width, 60);
+
+      // Title Text
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 18px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("📍 SHAREMAP DIGITAL ADDRESS", canvas.width / 2, 38);
+
+      // Draw Generated QR Code
       const qrX = (canvas.width - 240) / 2;
       const qrY = 80;
-
-      // Draw QR Code onto Card
-      ctx.drawImage(qrImg, qrX, qrY, 240, 240);
-
-      // 3. Overlay Custom Logo in Center (if provided)
-      if (uploadedLogo) {
-        const logoSize = 48;
-        const logoX = (canvas.width - logoSize) / 2;
-        const logoY = qrY + (240 - logoSize) / 2;
-
-        // White background box for logo contrast
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(logoX - 4, logoY - 4, logoSize + 8, logoSize + 8);
-
-        // Draw Custom Logo
-        ctx.drawImage(uploadedLogo, logoX, logoY, logoSize, logoSize);
-      }
+      ctx.drawImage(qrCanvasSrc, qrX, qrY, 240, 240);
 
       // Divider Line
       ctx.strokeStyle = "#e0e0e0";
@@ -173,7 +174,7 @@
       ctx.lineTo(canvas.width - 30, 340);
       ctx.stroke();
 
-      // Store / Merchant Name
+      // Merchant / Store Name
       ctx.fillStyle = "#222222";
       ctx.font = "bold 18px Arial";
       ctx.fillText(storeName || "SHAREMAP MERCHANT", canvas.width / 2, 375);
@@ -183,17 +184,14 @@
       ctx.font = "14px Arial";
       ctx.fillText(`📱 ${phone}`, canvas.width / 2, 400);
 
-      // Footer Note
+      // Footer
       ctx.fillStyle = "#888888";
       ctx.font = "italic 11px Arial";
       ctx.fillText("I-scan para mag-send ng Exact Location via SMS", canvas.width / 2, 435);
 
       // Show Download Button
       downloadBtn.style.display = "block";
-    };
-
-    // Trigger QR Image load
-    qrImg.src = qrEngine.toDataURL();
+    }, 400);
   }
 
   function downloadQR() {

@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ShareMap - Merchant QR Generator</title>
-  <!-- Inline Pure JS QR Generator -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     body { 
@@ -52,13 +51,13 @@
       text-align: center;
     }
     canvas {
-      max-width: 100%;
+      width: 100%;
+      max-width: 340px; /* Displayed size on screen */
+      height: auto;
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
-    #tempQrDiv {
-      display: none;
-    }
+    #tempQrDiv { display: none; }
   </style>
 </head>
 <body>
@@ -81,10 +80,9 @@
     <canvas id="qrCanvas"></canvas>
   </div>
 
-  <button id="downloadBtn" onclick="downloadQR()">📥 DOWNLOAD QR STANDEE (PNG)</button>
+  <button id="downloadBtn" onclick="downloadQR()">📥 DOWNLOAD HD QR STANDEE (PNG)</button>
 </div>
 
-<!-- Temporary DOM node for raw QR generation -->
 <div id="tempQrDiv"></div>
 
 <script>
@@ -111,9 +109,6 @@
     const storeName = document.getElementById('storeName').value.trim();
     const phone = document.getElementById('phone').value.trim();
     const tempDiv = document.getElementById('tempQrDiv');
-    const canvas = document.getElementById('qrCanvas');
-    const ctx = canvas.getContext('2d');
-    const downloadBtn = document.getElementById('downloadBtn');
 
     if (!phone) {
       alert("Paki-lagay ang cellphone number mo!");
@@ -124,15 +119,14 @@
 
     const sharemapUrl = `https://sharemap-digital-address.github.io/send-sharemap-smslocation/?phone=${phone}`;
 
-    // 1. Generate base QR Code into DOM
+    // Generate high-res base QR (720x720)
     new QRCode(tempDiv, {
       text: sharemapUrl,
-      width: 240,
-      height: 240,
+      width: 720,
+      height: 720,
       correctLevel: QRCode.CorrectLevel.H
     });
 
-    // 2. Wait until img/canvas element inside tempDiv is rendered
     let checkCounter = 0;
     const interval = setInterval(() => {
       const qrElement = tempDiv.querySelector('canvas') || tempDiv.querySelector('img');
@@ -141,23 +135,28 @@
       if (qrElement || checkCounter > 20) {
         clearInterval(interval);
         if (!qrElement) {
-          alert("Nagka-error sa pag-render ng QR. Paki-refresh ang page.");
+          alert("Nagka-error sa pag-render ng QR.");
           return;
         }
 
-        renderCanvasCard(qrElement, storeName, phone);
+        renderHDCanvasCard(qrElement, storeName, phone);
       }
     }, 50);
   }
 
-  function renderCanvasCard(qrSource, storeName, phone) {
+  function renderHDCanvasCard(qrSource, storeName, phone) {
     const canvas = document.getElementById('qrCanvas');
     const ctx = canvas.getContext('2d');
     const downloadBtn = document.getElementById('downloadBtn');
 
-    // Card Layout Setup
-    canvas.width = 340;
-    canvas.height = 460;
+    // 3x High-Resolution Canvas Dimensions (1020 x 1380)
+    const scale = 3;
+    canvas.width = 340 * scale;
+    canvas.height = 460 * scale;
+
+    // Enable High-Quality Image Smoothing
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     // White Background
     ctx.fillStyle = "#ffffff";
@@ -165,55 +164,57 @@
 
     // Blue Header
     ctx.fillStyle = "#0275d8";
-    ctx.fillRect(0, 0, canvas.width, 60);
+    ctx.fillRect(0, 0, canvas.width, 60 * scale);
 
     // Header Title
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 18px Arial";
+    ctx.font = `bold ${18 * scale}px Arial`;
     ctx.textAlign = "center";
-    ctx.fillText("📍 SHAREMAP DIGITAL ADDRESS", canvas.width / 2, 38);
+    ctx.fillText("📍 SHAREMAP DIGITAL ADDRESS", canvas.width / 2, 38 * scale);
 
-    // Draw QR Code
-    const qrX = (canvas.width - 240) / 2;
-    const qrY = 80;
-    ctx.drawImage(qrSource, qrX, qrY, 240, 240);
+    // Draw High-Res QR Code (720x720)
+    const qrSize = 240 * scale;
+    const qrX = (canvas.width - qrSize) / 2;
+    const qrY = 80 * scale;
+    ctx.drawImage(qrSource, qrX, qrY, qrSize, qrSize);
 
-    // Draw Center Logo overlay if present
+    // Draw Center Logo overlay
     if (uploadedLogo) {
-      const logoSize = 50;
+      const logoSize = 50 * scale;
       const logoX = (canvas.width - logoSize) / 2;
-      const logoY = qrY + (240 - logoSize) / 2;
+      const logoY = qrY + (qrSize - logoSize) / 2;
 
-      // Draw solid white box behind logo
+      // Solid white box behind logo
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(logoX - 4, logoY - 4, logoSize + 8, logoSize + 8);
+      const padding = 4 * scale;
+      ctx.fillRect(logoX - padding, logoY - padding, logoSize + (padding * 2), logoSize + (padding * 2));
 
-      // Draw logo image
+      // Draw logo
       ctx.drawImage(uploadedLogo, logoX, logoY, logoSize, logoSize);
     }
 
-    // Divider
+    // Divider Line
     ctx.strokeStyle = "#e0e0e0";
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1 * scale;
     ctx.beginPath();
-    ctx.moveTo(30, 340);
-    ctx.lineTo(canvas.width - 30, 340);
+    ctx.moveTo(30 * scale, 340 * scale);
+    ctx.lineTo(canvas.width - (30 * scale), 340 * scale);
     ctx.stroke();
 
     // Store Name
     ctx.fillStyle = "#222222";
-    ctx.font = "bold 18px Arial";
-    ctx.fillText(storeName || "SHAREMAP MERCHANT", canvas.width / 2, 375);
+    ctx.font = `bold ${18 * scale}px Arial`;
+    ctx.fillText(storeName || "SHAREMAP MERCHANT", canvas.width / 2, 375 * scale);
 
     // Phone Number
     ctx.fillStyle = "#555555";
-    ctx.font = "14px Arial";
-    ctx.fillText(`📱 ${phone}`, canvas.width / 2, 400);
+    ctx.font = `${14 * scale}px Arial`;
+    ctx.fillText(`📱 ${phone}`, canvas.width / 2, 400 * scale);
 
-    // Subtitle
+    // Subtitle Instructions
     ctx.fillStyle = "#888888";
-    ctx.font = "italic 11px Arial";
-    ctx.fillText("I-scan para mag-send ng Exact Location via SMS", canvas.width / 2, 435);
+    ctx.font = `italic ${11 * scale}px Arial`;
+    ctx.fillText("I-scan para mag-send ng Exact Location via SMS", canvas.width / 2, 435 * scale);
 
     // Show Download Button
     downloadBtn.style.display = "block";
@@ -225,8 +226,8 @@
     const link = document.createElement('a');
     
     const fileName = storeName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    link.download = `sharemap_qr_${fileName}.png`;
-    link.href = canvas.toDataURL('image/png');
+    link.download = `sharemap_hd_qr_${fileName}.png`;
+    link.href = canvas.toDataURL('image/png', 1.0);
     link.click();
   }
 </script>

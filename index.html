@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ShareMap - Merchant QR Generator</title>
+  <!-- Inline Pure JS QR Generator -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     body { 
@@ -52,12 +53,14 @@
     }
     canvas {
       width: 100%;
-      max-width: 340px; /* Displayed size on screen */
+      max-width: 340px; /* Sukat sa screen display */
       height: auto;
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
-    #tempQrDiv { display: none; }
+    #tempQrDiv {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -83,6 +86,7 @@
   <button id="downloadBtn" onclick="downloadQR()">📥 DOWNLOAD HD QR STANDEE (PNG)</button>
 </div>
 
+<!-- Temporary DOM node for raw QR generation -->
 <div id="tempQrDiv"></div>
 
 <script>
@@ -119,7 +123,7 @@
 
     const sharemapUrl = `https://sharemap-digital-address.github.io/send-sharemap-smslocation/?phone=${phone}`;
 
-    // Generate high-res base QR (720x720)
+    // 1. Generate High-Res base QR (720x720) into DOM
     new QRCode(tempDiv, {
       text: sharemapUrl,
       width: 720,
@@ -127,6 +131,7 @@
       correctLevel: QRCode.CorrectLevel.H
     });
 
+    // 2. Wait until img/canvas element inside tempDiv is rendered
     let checkCounter = 0;
     const interval = setInterval(() => {
       const qrElement = tempDiv.querySelector('canvas') || tempDiv.querySelector('img');
@@ -135,26 +140,26 @@
       if (qrElement || checkCounter > 20) {
         clearInterval(interval);
         if (!qrElement) {
-          alert("Nagka-error sa pag-render ng QR.");
+          alert("Nagka-error sa pag-render ng QR. Paki-refresh ang page.");
           return;
         }
 
-        renderHDCanvasCard(qrElement, storeName, phone);
+        renderCanvasCard(qrElement, storeName, phone);
       }
     }, 50);
   }
 
-  function renderHDCanvasCard(qrSource, storeName, phone) {
+  function renderCanvasCard(qrSource, storeName, phone) {
     const canvas = document.getElementById('qrCanvas');
     const ctx = canvas.getContext('2d');
     const downloadBtn = document.getElementById('downloadBtn');
 
-    // 3x High-Resolution Canvas Dimensions (1020 x 1380)
+    // 3x High-Resolution Canvas Dimensions (1020 x 1380 pixels)
     const scale = 3;
-    canvas.width = 340 * scale;
-    canvas.height = 460 * scale;
+    canvas.width = 340 * scale;  // 1020px
+    canvas.height = 460 * scale; // 1380px
 
-    // Enable High-Quality Image Smoothing
+    // High quality rendering
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
@@ -162,7 +167,7 @@
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Blue Header
+    // Blue Header Bar
     ctx.fillStyle = "#0275d8";
     ctx.fillRect(0, 0, canvas.width, 60 * scale);
 
@@ -172,24 +177,24 @@
     ctx.textAlign = "center";
     ctx.fillText("📍 SHAREMAP DIGITAL ADDRESS", canvas.width / 2, 38 * scale);
 
-    // Draw High-Res QR Code (720x720)
+    // Draw QR Code
     const qrSize = 240 * scale;
     const qrX = (canvas.width - qrSize) / 2;
     const qrY = 80 * scale;
     ctx.drawImage(qrSource, qrX, qrY, qrSize, qrSize);
 
-    // Draw Center Logo overlay
+    // Draw Center Logo overlay if present
     if (uploadedLogo) {
       const logoSize = 50 * scale;
       const logoX = (canvas.width - logoSize) / 2;
       const logoY = qrY + (qrSize - logoSize) / 2;
-
-      // Solid white box behind logo
-      ctx.fillStyle = "#ffffff";
       const padding = 4 * scale;
+
+      // Draw solid white box behind logo
+      ctx.fillStyle = "#ffffff";
       ctx.fillRect(logoX - padding, logoY - padding, logoSize + (padding * 2), logoSize + (padding * 2));
 
-      // Draw logo
+      // Draw logo image
       ctx.drawImage(uploadedLogo, logoX, logoY, logoSize, logoSize);
     }
 
@@ -211,7 +216,7 @@
     ctx.font = `${14 * scale}px Arial`;
     ctx.fillText(`📱 ${phone}`, canvas.width / 2, 400 * scale);
 
-    // Subtitle Instructions
+    // Subtitle
     ctx.fillStyle = "#888888";
     ctx.font = `italic ${11 * scale}px Arial`;
     ctx.fillText("I-scan para mag-send ng Exact Location via SMS", canvas.width / 2, 435 * scale);
